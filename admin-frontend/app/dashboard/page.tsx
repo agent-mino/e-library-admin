@@ -51,7 +51,7 @@ export default function Dashboard() {
       <main className="max-w-6xl mx-auto px-4 py-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
       {/* Books Management */}
         <Link
-          href="/admin/books" // This will automatically render ManageBooksPage
+          href="/books" // This will automatically render ManageBooksPage
           className="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center hover:shadow-xl transition"
         >
           <FiBook className="text-gray-600 text-4xl mb-4" />
@@ -63,7 +63,7 @@ export default function Dashboard() {
 
         {/* Users Management */}
         <Link
-          href="/admin/users"
+          href="/users"
           className="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center hover:shadow-xl transition"
         >
           <FiUsers className="text-gray-600 text-4xl mb-4" />
@@ -75,7 +75,7 @@ export default function Dashboard() {
 
         {/* Categories Management */}
         <Link
-          href="/admin/categories"
+          href="/categories"
           className="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center hover:shadow-xl transition"
         >
           <FiTag className="text-gray-600 text-4xl mb-4" />

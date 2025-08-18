@@ -84,13 +84,6 @@ export default function AdminLogin() {
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
-
-        <p className="text-sm text-center text-gray-600">
-          Not an admin?{" "}
-          <Link href="/" className="text-gray-600 hover:underline">
-            Return Home
-          </Link>
-        </p>
       </div>
     </div>
   );
