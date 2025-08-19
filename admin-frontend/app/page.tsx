@@ -8,35 +8,76 @@ import type { AdminLoginResponse } from "./types/admin";
 import { redirect } from "next/navigation";
 
 export default function AdminLogin() {
-  const router = useRouter();
+  // const router = useRouter();
+  // const [email, setEmail] = useState("");
+  // const [password, setPassword] = useState("");
+  // const [loading, setLoading] = useState(false);
+  // const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setErrMsg(null);
+  //   setLoading(true);
+  //   try {
+  //     // Backend path
+  //     const admin = await postJSON<{ email: string; password: string }, AdminLoginResponse>(
+  //       "/login",
+  //       { email, password }
+  //     );
+
+  //     localStorage.setItem("el_admin", JSON.stringify(admin));
+
+  //     // Go to dashboard
+  //     router.push("/dashboard");
+
+  //   } catch (err: any) {
+  //     setErrMsg(err?.message || "Login failed");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errMsg, setErrMsg] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrMsg(null);
+    setError("");
     setLoading(true);
+
     try {
-      // Backend path
-      const admin = await postJSON<{ email: string; password: string }, AdminLoginResponse>(
-        "/login",
-        { email, password }
-      );
+      const res = await fetch("http://127.0.0.1:8000/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-      localStorage.setItem("el_admin", JSON.stringify(admin));
+      const data = await res.json();
 
-      // Go to dashboard
-      router.push("/dashboard");
+      if (!res.ok) {
+        setError(data.detail || "Invalid login credentials");
+      } else {
 
-    } catch (err: any) {
-      setErrMsg(err?.message || "Login failed");
+               localStorage.setItem("admin_token", data.access_token);
+               localStorage.setItem("admin", JSON.stringify({
+                id: data.id,
+                name: data.name,
+                email: data.email
+              }));
+              
+        localStorage.setItem("admin_name", data.name);
+        localStorage.setItem("admin_email", data.email);
+
+        
+        window.location.href = "/dashboard";
+      }
+    } catch (err) {
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg space-y-6">
@@ -45,10 +86,10 @@ export default function AdminLogin() {
           Enter your credentials to access the admin dashboard.
         </p>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          {errMsg && (
+        <form className="space-y-4" onSubmit={handleLogin}>
+          {error && (
             <div className="text-red-600 text-sm bg-red-50 border border-red-200 p-2 rounded">
-              {errMsg}
+              {error}
             </div>
           )}
 

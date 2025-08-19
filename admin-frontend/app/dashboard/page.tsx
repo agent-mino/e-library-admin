@@ -17,20 +17,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("el_admin");
+      const raw = localStorage.getItem("admin");
       if (!raw) {
-        router.replace("/admin/login");
+        router.replace("/");
         return;
       }
       const admin = JSON.parse(raw) as { name?: string };
       setAdminName(admin?.name || "Admin");
     } catch {
-      router.replace("/admin/login");
+      router.replace("/");
     }
   }, [router]);
 
   const handleLogout = () => {
-    localStorage.removeItem("el_admin");
+    localStorage.removeItem("admin_token");
     router.replace("/");
   };
 
