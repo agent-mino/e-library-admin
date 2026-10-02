@@ -1,131 +1,81 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { postJSON } from "@/lib/api";
-import type { AdminLoginResponse } from "./types/admin";
-import { redirect } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ErrorNotice } from "@/components/Notice";
+import { api } from "@/lib/api";
+import { getToken, saveSession } from "@/lib/auth";
+
+type LoginResponse = { access_token: string; id: string; name: string; email: string };
 
 export default function AdminLogin() {
-  // const router = useRouter();
-  // const [email, setEmail] = useState("");
-  // const [password, setPassword] = useState("");
-  // const [loading, setLoading] = useState(false);
-  // const [errMsg, setErrMsg] = useState<string | null>(null);
-
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   setErrMsg(null);
-  //   setLoading(true);
-  //   try {
-  //     // Backend path
-  //     const admin = await postJSON<{ email: string; password: string }, AdminLoginResponse>(
-  //       "/login",
-  //       { email, password }
-  //     );
-
-  //     localStorage.setItem("el_admin", JSON.stringify(admin));
-
-  //     // Go to dashboard
-  //     router.push("/dashboard");
-
-  //   } catch (err: any) {
-  //     setErrMsg(err?.message || "Login failed");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (getToken()) router.replace("/dashboard");
+    else if (new URLSearchParams(window.location.search).has("expired")) {
+      setError("Your session expired. Please log in again.");
+    }
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      const res = await fetch("http://127.0.0.1:8000/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.detail || "Invalid login credentials");
-      } else {
-
-               localStorage.setItem("admin_token", data.access_token);
-               localStorage.setItem("admin", JSON.stringify({
-                id: data.id,
-                name: data.name,
-                email: data.email
-              }));
-              
-        localStorage.setItem("admin_name", data.name);
-        localStorage.setItem("admin_email", data.email);
-
-        
-        window.location.href = "/dashboard";
-      }
+      const data = await api<LoginResponse>("/admin/login", { method: "POST", body: { email, password } });
+      saveSession(data.access_token, { id: data.id, name: data.name, email: data.email });
+      router.replace("/dashboard");
     } catch (err) {
-      setError("Something went wrong. Please try again.");
-    } finally {
+      setError(err instanceof Error ? err.message : "Login failed");
       setLoading(false);
     }
   };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg space-y-6">
-        <h1 className="text-3xl font-bold text-gray-800 text-center">Admin Login</h1>
-        <p className="text-center text-gray-600">
-          Enter your credentials to access the admin dashboard.
-        </p>
+    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">E-Library Admin</h1>
+        <p className="mb-6 mt-1 text-sm text-gray-500">Sign in to manage books, categories and users.</p>
+
+        {error && <ErrorNotice message={error} />}
 
         <form className="space-y-4" onSubmit={handleLogin}>
-          {error && (
-            <div className="text-red-600 text-sm bg-red-50 border border-red-200 p-2 rounded">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email Address</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Email
             <input
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
-              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
+          </label>
+          <label className="block text-sm font-medium text-gray-700">
+            Password
             <input
               type="password"
               required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
-          </div>
-
+          </label>
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gray-600 text-white font-semibold py-2 rounded-md hover:bg-gray-700 transition disabled:opacity-60"
+            className="w-full rounded-md bg-gray-900 py-2 font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }

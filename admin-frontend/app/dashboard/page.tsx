@@ -1,90 +1,80 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
-import { FiBook, FiUsers, FiTag, FiLogOut } from "react-icons/fi";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FiBook, FiTag, FiUsers } from "react-icons/fi";
+import AdminShell from "@/components/AdminShell";
+import { ErrorNotice } from "@/components/Notice";
+import { api } from "@/lib/api";
+import type { Book, Category, User } from "@/lib/types";
 
-// export default function AdminDashboard() {
-//   // Fake logout function
-//   const handleLogout = () => {
-//     console.log("Admin logged out");
-//   };
+type Counts = { books: number; categories: number; users: number };
+
 export default function Dashboard() {
-  const router = useRouter();
-  const [adminName, setAdminName] = useState<string>("");
+  const [counts, setCounts] = useState<Counts | null>(null);
+  const [recent, setRecent] = useState<Book[]>([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("admin");
-      if (!raw) {
-        router.replace("/");
-        return;
-      }
-      const admin = JSON.parse(raw) as { name?: string };
-      setAdminName(admin?.name || "Admin");
-    } catch {
-      router.replace("/");
-    }
-  }, [router]);
+    Promise.all([api<Book[]>("/books/"), api<Category[]>("/categories/"), api<User[]>("/user/")])
+      .then(([books, categories, users]) => {
+        setCounts({ books: books.length, categories: categories.length, users: users.length });
+        setRecent(books.slice(0, 5));
+      })
+      .catch((err: Error) => setError(err.message));
+  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("admin_token");
-    router.replace("/");
-  };
+  const cards = [
+    { label: "Books", value: counts?.books, href: "/books", icon: FiBook },
+    { label: "Categories", value: counts?.categories, href: "/categories", icon: FiTag },
+    { label: "Registered users", value: counts?.users, href: "/users", icon: FiUsers },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-gray-600 text-white p-6 flex justify-between items-center">
-      <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 bg-white text-gray-600 px-4 py-2 rounded hover:bg-gray-100"
-        >
-          <FiLogOut /> Logout
-        </button>
-      </header>
+    <AdminShell title="Dashboard">
+      {error && <ErrorNotice message={error} />}
 
-      {/* Dashboard Content */}
-      <main className="max-w-6xl mx-auto px-4 py-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-      {/* Books Management */}
-        <Link
-          href="/books" // This will automatically render ManageBooksPage
-          className="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center hover:shadow-xl transition"
-        >
-          <FiBook className="text-gray-600 text-4xl mb-4" />
-          <h2 className="text-lg font-semibold text-gray-800">Manage Books</h2>
-          <p className="text-gray-500 text-sm mt-2 text-center">
-            Add, edit, or remove books from the library collection.
-          </p>
-        </Link>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {cards.map(({ label, value, href, icon: Icon }) => (
+          <Link
+            key={label}
+            href={href}
+            className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md"
+          >
+            <span className="rounded-md bg-gray-100 p-3 text-xl text-gray-700">
+              <Icon aria-hidden />
+            </span>
+            <span>
+              <span className="block text-2xl font-bold">{value ?? "—"}</span>
+              <span className="text-sm text-gray-500">{label}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
 
-        {/* Users Management */}
-        <Link
-          href="/users"
-          className="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center hover:shadow-xl transition"
-        >
-          <FiUsers className="text-gray-600 text-4xl mb-4" />
-          <h2 className="text-lg font-semibold text-gray-800">Manage Users</h2>
-          <p className="text-gray-500 text-sm mt-2 text-center">
-            View, block, or modify user accounts and roles.
-          </p>
-        </Link>
-
-        {/* Categories Management */}
-        <Link
-          href="/categories"
-          className="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center hover:shadow-xl transition"
-        >
-          <FiTag className="text-gray-600 text-4xl mb-4" />
-          <h2 className="text-lg font-semibold text-gray-800">Manage Categories</h2>
-          <p className="text-gray-500 text-sm mt-2 text-center">
-            Add or edit book categories and organize library content.
-          </p>
-        </Link>
-      </main>
-    </div>
+      <section className="mt-8 rounded-lg border border-gray-200 bg-white">
+        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+          <h2 className="font-semibold">Recently added books</h2>
+          <Link href="/books/new" className="text-sm font-medium text-gray-700 underline-offset-4 hover:underline">
+            + Add book
+          </Link>
+        </div>
+        {recent.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-gray-500">{counts ? "No books yet." : "Loading…"}</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {recent.map((book) => (
+              <li key={book.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                <span>
+                  <span className="font-medium">{book.title}</span>
+                  <span className="text-gray-500"> · {book.author}</span>
+                </span>
+                <span className="text-gray-500">{book.category_name ?? "Uncategorised"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </AdminShell>
   );
 }

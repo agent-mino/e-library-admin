@@ -1,125 +1,87 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  created_at: string;
-}
-
-const API_BASE = "http://127.0.0.1:8000"; // change if backend is hosted elsewhere
+import { useEffect, useMemo, useState } from "react";
+import AdminShell from "@/components/AdminShell";
+import { Empty, ErrorNotice, Loading } from "@/components/Notice";
+import { api } from "@/lib/api";
+import type { User } from "@/lib/types";
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [searchId, setSearchId] = useState("");
-  const [searchResult, setSearchResult] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[] | null>(null);
+  const [query, setQuery] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  // Fetch all users on load
   useEffect(() => {
-    const fetchUsers = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/user/`);
-        if (!res.ok) throw new Error("Failed to fetch users");
-        const data = await res.json();
-        setUsers(data);
-      } catch {
-        setError("Error loading users");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUsers();
+    api<User[]>("/user/")
+      .then(setUsers)
+      .catch((err: Error) => setError(err.message));
   }, []);
 
-  // Search by ID
-  const handleSearch = async () => {
-    if (!searchId) return;
-    setLoading(true);
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!users || !q) return users;
+    return users.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+  }, [users, query]);
+
+  const remove = async (user: User) => {
+    if (!confirm(`Remove ${user.name} (${user.email})? They will no longer be able to sign in.`)) return;
+    setError("");
     try {
-      setError("");
-      const res = await fetch(`${API_BASE}/user/${searchId}`);
-      if (res.status === 404) {
-        setSearchResult(null);
-        setError("User not found");
-        return;
-      }
-      if (!res.ok) throw new Error("Failed to fetch user");
-      const data = await res.json();
-      setSearchResult(data);
-    } catch {
-      setError("Error searching user");
-    } finally {
-      setLoading(false);
+      await api(`/user/${user.id}`, { method: "DELETE" });
+      setUsers((list) => (list ?? []).filter((u) => u.id !== user.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove user");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900">
-      {/* Navigation */}
-      <nav className="bg-black text-white p-4 flex justify-between">
-        <h1 className="font-bold">Admin Dashboard</h1>
-        <ul className="flex gap-4">
-          <li><a href="/home" className="hover:underline">Home</a></li>
-          <li><a href="/users" className="hover:underline">Users</a></li>
-          <li><a href="/books" className="hover:underline">Books</a></li>
-        </ul>
-      </nav>
+    <AdminShell title="Users">
+      {error && <ErrorNotice message={error} />}
 
-      {/* Content */}
-      <div className="container mx-auto p-6">
-        <h2 className="text-2xl font-bold mb-6">Manage Users</h2>
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search by name or email"
+        aria-label="Search users"
+        className="mb-6 w-full max-w-md rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+      />
 
-        {/* Search bar */}
-        <div className="flex mb-6 gap-2">
-          <input
-            type="text"
-            placeholder="Enter User ID..."
-            value={searchId}
-            onChange={(e) => setSearchId(e.target.value)}
-            className="border p-2 rounded w-full"
-          />
-          <button
-            onClick={handleSearch}
-            className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
-          >
-            Search
-          </button>
+      {visible === null ? (
+        <Loading />
+      ) : visible.length === 0 ? (
+        <Empty>{query ? "No users match your search." : "No registered users yet."}</Empty>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-gray-200 bg-gray-50 text-gray-500">
+              <tr>
+                <th className="px-5 py-3 font-medium">Name</th>
+                <th className="px-5 py-3 font-medium">Email</th>
+                <th className="px-5 py-3 font-medium">Joined</th>
+                <th className="px-5 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {visible.map((user) => (
+                <tr key={user.id}>
+                  <td className="px-5 py-3 font-medium">{user.name}</td>
+                  <td className="px-5 py-3 text-gray-600">{user.email}</td>
+                  <td className="px-5 py-3 text-gray-600">{new Date(user.created_at).toLocaleDateString()}</td>
+                  <td className="px-5 py-3 text-right">
+                    <button
+                      onClick={() => remove(user)}
+                      className="rounded-md border border-red-200 px-3 py-1 text-sm font-medium text-red-700 hover:bg-red-50"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-
-        {/* Loading + Error */}
-        {loading && <p className="text-gray-500">Loading...</p>}
-        {error && <p className="text-red-500">{error}</p>}
-
-        {/* Search Result */}
-        {searchResult && (
-          <div className="bg-white shadow-md p-4 rounded mb-6 border">
-            <h3 className="font-bold">{searchResult.name}</h3>
-            <p>Email: {searchResult.email}</p>
-            <p>Created: {new Date(searchResult.created_at).toLocaleString()}</p>
-          </div>
-        )}
-
-        {/* All Users */}
-        <h3 className="text-xl font-semibold mb-4">All Users</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {users.map((user) => (
-            <div
-              key={user.id}
-              className="bg-white shadow-md p-4 rounded border hover:shadow-lg transition"
-            >
-              <h3>{user.id}</h3>
-              <h4 className="font-bold">{user.name}</h4>
-              <p>Email: {user.email}</p>
-              <p>Created: {new Date(user.created_at).toLocaleString()}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      )}
+    </AdminShell>
   );
 }
